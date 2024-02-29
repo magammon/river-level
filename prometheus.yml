@@ -1,0 +1,18 @@
+## trying instructions at https://levelup.gitconnected.com/transforming-remote-json-into-prometheus-metrics-334d772df38a
+
+global:
+  scrape_interval: 15s
+  ## gather metrics of prometheus itself
+scrape_configs:
+- job_name: prometheus
+  static_configs:
+    - targets:
+      - 192.168.1.142:9092 # equivalent to "localhost:9090"
+
+- job_name: 'json_export_river'
+  scrape_interval: 15s
+  honor_labels: true
+  metrics_path: /probe
+  static_configs:
+    - targets:
+      - 192.168.1.142:8897 # equivalent to "localhost:8897"
