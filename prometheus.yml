@@ -10,7 +10,7 @@ scrape_configs:
       - 192.168.1.142:9092 # equivalent to "localhost:9090"
 
 - job_name: 'json_export_river'
-  scrape_interval: 15s
+  scrape_interval: 60s
   honor_labels: true
   metrics_path: /probe
   static_configs:

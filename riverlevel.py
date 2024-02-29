@@ -5,10 +5,10 @@ import requests as rq
 from prometheus_client import Gauge, start_http_server
 
 ## set read interval
-READ_INTERVAL = 15
+READ_INTERVAL = 1
 
 ## set read interval units. 1 = seconds, 60 = minutes, 3600 = hours, 86400 = days
-READ_UNITS = 1
+READ_UNITS = 60
 
 ## set api uri
 API_URI = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
