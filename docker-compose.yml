@@ -26,4 +26,3 @@ services:
         ports: #host:container
             - '8897:8897'
         image: magammon/riverlevel:latest
-        
