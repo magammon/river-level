@@ -20,7 +20,7 @@ services:
         ports:
             - '3457:3000' #modify 3457 to your setup needs
         volumes:
-            - /srv/dev-disk-by-uuid-7681c3ab-edef-4cbb-bbd6-3cc9080667ad/Docker/data/grafana-prometheus/grafana:/var/lib/grafana
+            - /srv/dev-disk-by-uuid-7681c3ab-edef-4cbb-bbd6-3cc9080667ad/Docker/data/grafana:/var/lib/grafana
         environment:
             - allow_embedding=true
         image: grafana/grafana
