@@ -19,6 +19,8 @@ services:
         container_name: grafana
         ports:
             - '3457:3000' #modify 3457 to your setup needs
+        environment:
+            - allow_embedding=true
         image: grafana/grafana
 
     riverlevel:
