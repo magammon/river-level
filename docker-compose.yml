@@ -13,6 +13,7 @@ services:
             - '9092:9090' #modify 9091 to your setup needs
         volumes:
             - '/srv/dev-disk-by-uuid-7681c3ab-edef-4cbb-bbd6-3cc9080667ad/Docker/data/river-level/prometheus.yml:/etc/prometheus/prometheus.yml' #modify the path for your install location
+            - '/srv/dev-disk-by-uuid-7681c3ab-edef-4cbb-bbd6-3cc9080667ad/Docker/data/prometheus:/prometheus'
         image: prom/prometheus
 
     grafana:
@@ -20,7 +21,7 @@ services:
         ports:
             - '3457:3000' #modify 3457 to your setup needs
         volumes:
-            - /srv/dev-disk-by-uuid-7681c3ab-edef-4cbb-bbd6-3cc9080667ad/Docker/data/grafana:/var/lib/grafana
+            - '/srv/dev-disk-by-uuid-7681c3ab-edef-4cbb-bbd6-3cc9080667ad/Docker/data/grafana:/var/lib/grafana'
         environment:
             - allow_embedding=true
         image: grafana/grafana
