@@ -24,6 +24,7 @@ services:
             - '/srv/dev-disk-by-uuid-7681c3ab-edef-4cbb-bbd6-3cc9080667ad/Docker/data/grafana:/var/lib/grafana'
         environment:
             - allow_embedding=true
+            - cookie_samesite=disabled
         image: grafana/grafana
 
     riverlevel:
