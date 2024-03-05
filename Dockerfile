@@ -1,4 +1,4 @@
-FROM debian:bookworm
+FROM debian:bookworm-slim
 
 EXPOSE 8897
 ## update apt, install python3, pip and venv
