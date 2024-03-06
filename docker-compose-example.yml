@@ -1,0 +1,10 @@
+version: '3.3'
+services:
+  riverlevel:
+    container_name: riverlevel
+    ports: #host:container
+        - '8897:8897'
+    image: magammon/riverlevel:test
+    environment:
+    - MEASURE_API=https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json
+    - STATION_API=https://environment.data.gov.uk/flood-monitoring/id/stations/531160.json
