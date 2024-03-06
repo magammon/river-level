@@ -64,7 +64,7 @@ if __name__ == "__main__":
     #expose metrics
     METRICS_PORT = 8897
     start_http_server(METRICS_PORT)
-    print("Serving sensor metrics on :{}".format(METRICS_PORT))
+    print(f"Serving sensor metrics on :{METRICS_PORT}")
 
     while True:
         set_gauge()
