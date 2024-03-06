@@ -16,15 +16,15 @@ READ_UNITS = 60
 READ_INTERVAL = 1
 
 # set api uris. These are set as docker environment variables
-MEASURE_API = os.environ['MEASURE_API']
+##MEASURE_API = os.environ['MEASURE_API']
 
-STATION_API = os.environ['STATION_API']
+##STATION_API = os.environ['STATION_API']
 
 # set api uris for testing. comment out when building
 
-#MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
+MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
 
-#STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/531160.json"
+STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/531160.json"
 
 # define functions
 def get_station_name(obj):
