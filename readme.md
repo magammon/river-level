@@ -12,4 +12,5 @@ Either:
 1. run `docker-compose up -d` 
 
 ## To Do
-- Put api link into a variable so that users can customise which river level measure they are looking at
+- set default values via build args
+- name guages using api information
