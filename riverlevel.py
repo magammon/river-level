@@ -1,3 +1,8 @@
+"""
+This module takes environment agency river level and station data 
+from their API and converts to prometheus metrics published through a webserver
+"""
+import os
 import json
 import time
 import requests as rq
@@ -11,9 +16,9 @@ READ_INTERVAL = 1
 READ_UNITS = 60
 
 ## set api uris
-MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
+MEASURE_API = os.environ['MEASURE_API']
 
-STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/531160.json"
+STATION_API = os.environ['STATION_API']
 
 ## initialise the gauges
 
@@ -23,35 +28,35 @@ gauge_typical_level = Gauge('keynsham_typical_level', 'Typical max level at Keyn
 
 gauge_max_record = Gauge('keynsham_max_record', 'max record level at Keynsham Rivermeads')
 
-## define function getHeight which makes the json output look pretty and easy to understand
-def getHeight(obj):
+## define function get_height which makes the json output look pretty and easy to understand
+def get_height(obj):
     """Function takes api output from EA API and returns river level as float."""
     height = json.dumps(obj['items']['latestReading']['value'])
     return float(height)
 
-## define function getTypical which makes the json output look pretty and easy to understand
-def getTypical(obj):
+## define function get_typical which makes the json output look pretty and easy to understand
+def get_typical(obj):
     """Function takes api output from EA API and returns information about station."""
     typical = json.dumps(obj['items']['stageScale']['typicalRangeHigh'])
     return float(typical)
 
-## define function getTypical which makes the json output look pretty and easy to understand
-def getRecordMax(obj):
+## define function get_typical which makes the json output look pretty and easy to understand
+def get_record_max(obj):
     """Function takes api output from EA API and returns information about station."""
     recordmax = json.dumps(obj['items']['stageScale']['maxOnRecord']['value'])
     return float(recordmax)
 
-## define function setGauge. Function calls API and then sets prometheus guage
-def setGauge():
-    """Function calls API, feeds to getHeight and then sets prometheus guage."""
+## define function set_gauge. Function calls API and then sets prometheus guage
+def set_gauge():
+    """Function calls API, feeds to get_height and then sets prometheus guage."""
     ## get responses
-    measure_response = rq.get(MEASURE_API)
-    station_response = rq.get(STATION_API)
+    measure_response = rq.get(MEASURE_API, timeout=30)
+    station_response = rq.get(STATION_API, timeout=30)
 
-    ## set river guage river level to output of getHeight function
-    gauge_river_level.set(getHeight(measure_response.json()))
-    gauge_typical_level.set(getTypical(station_response.json()))
-    gauge_max_record.set(getRecordMax(station_response.json()))
+    ## set river guage river level to output of get_height function
+    gauge_river_level.set(get_height(measure_response.json()))
+    gauge_typical_level.set(get_typical(station_response.json()))
+    gauge_max_record.set(get_record_max(station_response.json()))
 
     time.sleep(READ_INTERVAL * READ_UNITS)
 
@@ -62,4 +67,4 @@ if __name__ == "__main__":
     print("Serving sensor metrics on :{}".format(METRICS_PORT))
 
     while True:
-        setGauge()
+        set_gauge()
