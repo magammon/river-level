@@ -1,7 +1,0 @@
-version: '3.3'
-services:
-  riverlevel:
-    container_name: riverlevel
-    ports: #host:container
-      - '8897:8897'
-    image: library/riverlevel:test
