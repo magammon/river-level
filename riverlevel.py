@@ -9,13 +9,13 @@ import requests as rq
 # Import Gauge and start_http_server from prometheus_client
 from prometheus_client import Gauge, start_http_server
 
-## set read interval
-READ_INTERVAL = 1
-
-## set read interval units. 1 = seconds, 60 = minutes, 3600 = hours, 86400 = days
+## set read units. 1 = seconds, 60 = minutes, 3600 = hours, 86400 = days
 READ_UNITS = 60
 
-## set api uris
+## set read interval of how many multiples of the read units between scrapes of the API
+READ_INTERVAL = 1
+
+## set api uris. These are set as docker environment variables
 MEASURE_API = os.environ['MEASURE_API']
 
 STATION_API = os.environ['STATION_API']
