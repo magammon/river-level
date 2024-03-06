@@ -8,9 +8,9 @@ RUN mkdir /env
 ## make the venv in /env directory
 RUN python3 -m venv /env
 ## copy the minimum requirements file for 
-COPY minrequirements.txt /
+COPY requirements.txt /
 ## using the pip in the minimum requirements for the script
-RUN /env/bin/pip install -r minrequirements.txt
+RUN /env/bin/pip install -r requirements.txt
 ## copy over the python script
 COPY riverlevel.py /
 ## Using the python 3 in the venv execute the script
