@@ -16,15 +16,12 @@ READ_UNITS = 60
 READ_INTERVAL = 1
 
 # set api uris. These are set as docker environment variables
-##MEASURE_API = os.environ['MEASURE_API']
-
-##STATION_API = os.environ['STATION_API']
+MEASURE_API = os.environ['MEASURE_API']
+STATION_API = os.environ['STATION_API']
 
 # set api uris for testing. comment out when building
-
-MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
-
-STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/531160.json"
+##MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
+##STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/531160.json"
 
 # define functions
 def get_station_name(obj):
@@ -67,11 +64,13 @@ initialise_gauge_station_response = rq.get(STATION_API, timeout=30)
 ## use get_station_name function to extract station name 'label'
 STATION_NAME = get_station_name(initialise_gauge_station_response.json())
 
-gauge_river_level = Gauge('river_level', f'River level at {STATION_NAME}')
+STATION_NAME_UNDERSCORES = get_station_name(initialise_gauge_station_response.json()).replace(', ','_').lower()
 
-gauge_typical_level = Gauge('typical_level', f'Typical max level at {STATION_NAME}')
+gauge_river_level = Gauge(f'{STATION_NAME_UNDERSCORES}_river_level', f'River level at {STATION_NAME}')
 
-gauge_max_record = Gauge('max_record', f'max record level at {STATION_NAME}')
+gauge_typical_level = Gauge(f'{STATION_NAME_UNDERSCORES}_typical_level', f'Typical max level at {STATION_NAME}')
+
+gauge_max_record = Gauge(f'{STATION_NAME_UNDERSCORES}_max_record', f'max record level at {STATION_NAME}')
 
 if __name__ == "__main__":
     #expose metrics
