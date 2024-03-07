@@ -5,7 +5,7 @@ from their API and converts to prometheus metrics published through a webserver
 import os
 import json
 import time
-import platform
+#import platform
 import requests as rq
 # Import Gauge and start_http_server from prometheus_client
 from prometheus_client import Gauge, start_http_server
@@ -18,10 +18,10 @@ READ_INTERVAL = 1
 
 # set api uris. If os.platform == Linux these are set as docker environment variables, otherwise these are hardcoded. 
 ## This would be better if it detected directly if it was running inside a container. one approach would be to set an environment variable as a build arg the use if os.environ['BUILDARG'] == TRUE
-if platform.system() == 'Linux':
+if os.environ['CONTAINERISED'] == 'YES':
     MEASURE_API = os.environ['MEASURE_API']
     STATION_API = os.environ['STATION_API']
-elif platform.system() == 'Darwin' or platform.system() == 'Windows':
+else:
     MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
     STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/531160.json"
 
