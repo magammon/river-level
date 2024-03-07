@@ -16,7 +16,8 @@ READ_UNITS = 60
 # set read interval of how many multiples of the read units between scrapes of the API
 READ_INTERVAL = 1
 
-# set api uris. If os.platform == Linux these are set as docker environment variables, otherwise these are hardcoded
+# set api uris. If os.platform == Linux these are set as docker environment variables, otherwise these are hardcoded. 
+## This would be better if it detected directly if it was running inside a container. one approach would be to set an environment variable as a build arg the use if os.environ['BUILDARG'] == TRUE
 if platform.system() == 'Linux':
     MEASURE_API = os.environ['MEASURE_API']
     STATION_API = os.environ['STATION_API']
