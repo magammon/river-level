@@ -5,6 +5,7 @@ from their API and converts to prometheus metrics published through a webserver
 import os
 import json
 import time
+import platform
 import requests as rq
 # Import Gauge and start_http_server from prometheus_client
 from prometheus_client import Gauge, start_http_server
@@ -15,13 +16,13 @@ READ_UNITS = 60
 # set read interval of how many multiples of the read units between scrapes of the API
 READ_INTERVAL = 1
 
-# set api uris. These are set as docker environment variables
-MEASURE_API = os.environ['MEASURE_API']
-STATION_API = os.environ['STATION_API']
-
-# set api uris for testing. comment out when building
-##MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
-##STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/531160.json"
+# set api uris. If os.platform == Linux these are set as docker environment variables, otherwise these are hardcoded
+if platform.system() == 'Linux':
+    MEASURE_API = os.environ['MEASURE_API']
+    STATION_API = os.environ['STATION_API']
+elif platform.system() == 'Darwin' or platform.system() == 'Windows':
+    MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
+    STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/531160.json"
 
 # define functions
 def get_station_name(obj):
@@ -62,15 +63,15 @@ def set_gauge():
 initialise_gauge_station_response = rq.get(STATION_API, timeout=30)
 
 ## use get_station_name function to extract station name 'label'
-STATION_NAME = get_station_name(initialise_gauge_station_response.json())
+SN = get_station_name(initialise_gauge_station_response.json())
 
-STATION_NAME_UNDERSCORES = get_station_name(initialise_gauge_station_response.json()).replace(', ','_').lower()
+SN_UNDERSCORES = get_station_name(initialise_gauge_station_response.json()).replace(', ','_').lower()
 
-gauge_river_level = Gauge(f'{STATION_NAME_UNDERSCORES}_river_level', f'River level at {STATION_NAME}')
+gauge_river_level = Gauge(f'{SN_UNDERSCORES}_river_level', f'River level at {SN}')
 
-gauge_typical_level = Gauge(f'{STATION_NAME_UNDERSCORES}_typical_level', f'Typical max level at {STATION_NAME}')
+gauge_typical_level = Gauge(f'{SN_UNDERSCORES}_typical_level', f'Typical max level at {SN}')
 
-gauge_max_record = Gauge(f'{STATION_NAME_UNDERSCORES}_max_record', f'max record level at {STATION_NAME}')
+gauge_max_record = Gauge(f'{SN_UNDERSCORES}_max_record', f'max record level at {SN}')
 
 if __name__ == "__main__":
     #expose metrics
