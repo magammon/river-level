@@ -37,7 +37,7 @@ def get_station_name(obj):
     stationname = json.dumps(obj['items']['label'])
     return stationname.replace('"','')
 
-def get_height(obj):
+def get_height(obj): #TODO update so that this fails gracefully if the API isn't working.
     """Function takes api output from EA API and returns river level as float."""
     height = json.dumps(obj['items']['latestReading']['value'])
     return float(height)
