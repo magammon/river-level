@@ -15,4 +15,5 @@ Either:
 - set default values via build args
 - describe guages using api information - DONE
 - name guages using api information e.g. 'river_level' should be keynsham_rivermeads_river_level - DONE
-- make the module detect the OS and if linux do the environment variables
+- make the module detect the OS and if linux do the environment variables - DONE
+- if the reading is 0m then skip updating gauge
