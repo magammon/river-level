@@ -40,8 +40,15 @@ def get_station_name(obj):
 def get_height(obj): #TODO update so that this fails gracefully if the API isn't working.
     """Function takes api output from EA API and returns river level as float."""
     height = json.dumps(obj['items']['latestReading']['value'])
-    return float(height)
-
+    try: 
+        float(height)
+    except TypeError:
+        return
+    else:
+        if float(height) < 0.1:
+            return
+        else:
+            return float(height)
 def get_typical(obj):
     """Function takes api output from EA API and returns information about station."""
     typical = json.dumps(obj['items']['stageScale']['typicalRangeHigh'])
@@ -59,7 +66,12 @@ def set_gauge():
     station_response = rq.get(STATION_API, timeout=30)
 
     ## set river guage river level to output of get_height function
-    gauge_river_level.set(get_height(measure_response.json()))
+    try:
+        gauge_river_level.set(get_height(measure_response.json()))
+    except TypeError:
+        print("Station height API not functioning. Last good reading will be published (if available)")
+    else:
+        gauge_river_level.set(get_height(measure_response.json()))
     gauge_typical_level.set(get_typical(station_response.json()))
     gauge_max_record.set(get_record_max(station_response.json()))
 
