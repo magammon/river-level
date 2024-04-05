@@ -3,6 +3,8 @@ FROM debian:bookworm-slim
 EXPOSE 8897
 ## update apt, install python3, pip and venv
 RUN apt-get update && apt-get install -y python3 python3-pip && apt install -y python3-venv
+## update apt, upgrade all packages
+RUN apt-get update && apt-get upgrade -y
 ## make directory for the venv
 RUN mkdir /env
 ## make the venv in /env directory
