@@ -19,17 +19,16 @@ READ_INTERVAL = 1
 # set api uris.
 ## Try if environment variable has been set (e.g. that module running in container)
 try:
-    os.environ['CONTAINERISED'] == 'YES'
+    if os.environ['CONTAINERISED'] == 'YES':
+        print("Module containerised, using environment values for measure and station APIs.")
+        MEASURE_API = os.environ['MEASURE_API']
+        STATION_API = os.environ['STATION_API']
+
 ## If error raised use hardcoded values
 except KeyError:
     print("Module not containerised, using hard coded values for measure and station APIs.")
     MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
     STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/531160.json"
-## Else use environment variables as module running inside container
-else:
-    print("Module containerised, using environment values for measure and station APIs.")
-    MEASURE_API = os.environ['MEASURE_API']
-    STATION_API = os.environ['STATION_API']
 
 # define functions
 def get_station_name(obj):
