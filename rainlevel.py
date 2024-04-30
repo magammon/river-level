@@ -34,10 +34,15 @@ except KeyError:
     STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/53107"
 
 # define functions
-def get_station_name(obj):
-    """Function takes api output from EA API and returns name of station as string."""
-    stationname = json.dumps(obj['items']['label'])
-    return stationname.replace('"','')
+def get_station_grid_ref(obj):
+    """Function takes api output from EA API and returns station grid ref."""
+    station_grid_ref = json.dumps(obj['items']['gridReference'])
+    return station_grid_ref.replace('"','')
+
+def get_station_id(obj):
+    """Function takes api output from EA API and returns station grid ref."""
+    station_id = json.dumps(obj['items']['stationReference'])
+    return station_id.replace('"','')
 
 def get_rainfall(obj): #TODO update so that this fails gracefully if the API isn't working.
     """Function takes api output from EA API and returns river level as float."""
@@ -50,7 +55,7 @@ def set_gauge():
     measure_response = rq.get(MEASURE_API, timeout=30)
 
     ## set river guage river level to output of get_rainfall function
-    gauge_river_level.set(get_rainfall(measure_response.json()))
+    gauge_rainfall.set(get_rainfall(measure_response.json()))
 
     time.sleep(READ_INTERVAL * READ_UNITS)
 
@@ -59,15 +64,11 @@ def set_gauge():
 initialise_gauge_station_response = rq.get(STATION_API, timeout=30)
 
 ## use get_station_name function to extract station name 'label'
-SN = get_station_name(initialise_gauge_station_response.json())
+SID = get_station_id(initialise_gauge_station_response.json())
 
-SN_UNDERSCORES = get_station_name(initialise_gauge_station_response.json()).replace(', ','_').lower()
+SGRIDREF = get_station_grid_ref(initialise_gauge_station_response.json()).replace(' ','_').upper()
 
-gauge_river_level = Gauge(f'{SN_UNDERSCORES}_river_level', f'River level at {SN}')
-
-gauge_typical_level = Gauge(f'{SN_UNDERSCORES}_typical_level', f'Typical max level at {SN}')
-
-gauge_max_record = Gauge(f'{SN_UNDERSCORES}_max_record', f'max record level at {SN}')
+gauge_rainfall = Gauge(f'rainfall_osgridref_{SGRIDREF}', f'Rainfall level at environment agency station ID {SID} OS Grid Reference ({SGRIDREF})')
 
 if __name__ == "__main__":
     #expose metrics
