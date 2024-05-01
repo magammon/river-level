@@ -1,10 +1,14 @@
-FROM debian:bookworm-slim
+FROM alpine:latest
 
 EXPOSE 8897
 ## update apt, install python3, pip and venv
-RUN apt-get update && apt-get install -y python3 python3-pip && apt install -y python3-venv
+RUN apk update 
+RUN apk add --no-cache python3 
+RUN apk add --no-cache py3-pip
+RUN apk add --no-cache py3-virtualenv
 ## update apt, upgrade all packages
-RUN apt-get update && apt-get upgrade -y
+RUN apk upgrade
+RUN apk cache clean
 ## make directory for the venv
 RUN mkdir /env
 ## make the venv in /env directory

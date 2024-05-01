@@ -1,3 +1,4 @@
+#! /bin/zsh
 # update tag to latest when doing final build. 
 docker buildx build \
  --tag magammon/riverlevel:latest \
