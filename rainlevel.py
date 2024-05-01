@@ -30,7 +30,7 @@ try:
 ## If error raised use hardcoded values
 except KeyError:
     print("Module not containerised, using hard coded values for measure and station APIs.")
-    RAIN_MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
+    RAIN_MEASURE_API = "http://environment.data.gov.uk/flood-monitoring/id/measures/53107-rainfall-tipping_bucket_raingauge-t-15_min-mm"
     RAIN_STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/53107"
 
 # define functions
