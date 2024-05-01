@@ -21,16 +21,22 @@ READ_INTERVAL = 1
 try:
     if os.environ['CONTAINERISED'] == 'YES':
         print("Module containerised, using environment values for measure and station APIs.")
-        MEASURE_API = os.environ['MEASURE_API']
-        STATION_API = os.environ['STATION_API']
+        RIVER_MEASURE_API = os.environ['RIVER_MEASURE_API']
+        RIVER_STATION_API = os.environ['RIVER_STATION_API']
+        RAIN_MEASURE_API = os.environ['RAIN_MEASURE_API']
+        RAIN_STATION_API = os.environ['RAIN_STATION_API']
 
 ## If error raised use hardcoded values
 except KeyError:
     print("Module not containerised, using hard coded values for measure and station APIs.")
-    MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
-    STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/531160.json"
+    RIVER_MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
+    RIVER_STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/531160.json"
+    RAIN_MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
+    RAIN_STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/53107"
 
 # define functions
+
+
 def get_station_name(obj):
     """Function takes api output from EA API and returns name of station as string."""
     stationname = json.dumps(obj['items']['label'])
@@ -51,33 +57,59 @@ def get_record_max(obj):
     recordmax = json.dumps(obj['items']['stageScale']['maxOnRecord']['value'])
     return float(recordmax)
 
-def set_gauge():
+def get_station_grid_ref(obj):
+    """Function takes api output from EA API and returns station grid ref."""
+    station_grid_ref = json.dumps(obj['items']['gridReference'])
+    return station_grid_ref.replace('"','')
+
+def get_station_id(obj):
+    """Function takes api output from EA API and returns station ID."""
+    station_id = json.dumps(obj['items']['stationReference'])
+    return station_id.replace('"','')
+
+def get_rainfall(obj): #TODO update so that this fails gracefully if the API isn't working.
+    """Function takes api output from EA API and returns river level as float."""
+    rainfall = json.dumps(obj['items']['latestReading']['value'])
+    return float(rainfall)
+
+def set_gauges():
     """Function calls API, feeds to get_height and then sets prometheus guage."""
     ## get responses
-    measure_response = rq.get(MEASURE_API, timeout=30)
-    station_response = rq.get(STATION_API, timeout=30)
+    river_measure_response = rq.get(RIVER_MEASURE_API, timeout=30)
+    river_station_response = rq.get(RIVER_STATION_API, timeout=30)
+    rain_measure_response = rq.get(RAIN_MEASURE_API, timeout=30)
 
     ## set river guage river level to output of get_height function
-    gauge_river_level.set(get_height(measure_response.json()))
-    gauge_typical_level.set(get_typical(station_response.json()))
-    gauge_max_record.set(get_record_max(station_response.json()))
+    gauge_river_level.set(get_height(river_measure_response.json()))
+    gauge_river_typical_level.set(get_typical(river_station_response.json()))
+    gauge_river_max_record.set(get_record_max(river_station_response.json()))
+    gauge_rainfall.set(get_rainfall(rain_measure_response.json()))
 
     time.sleep(READ_INTERVAL * READ_UNITS)
 
 # initialise the gauges
 ## call the API to get the station JSON
-initialise_gauge_station_response = rq.get(STATION_API, timeout=30)
+initialise_river_gauge_station_response = rq.get(RIVER_STATION_API, timeout=30)
+initialise_rain_gauge_station_response = rq.get(RAIN_STATION_API, timeout=30)
 
-## use get_station_name function to extract station name 'label'
-SN = get_station_name(initialise_gauge_station_response.json())
+## get river station name for gauge labels
+SN = get_station_name(initialise_river_gauge_station_response.json())
 
-SN_UNDERSCORES = get_station_name(initialise_gauge_station_response.json()).replace(', ','_').lower()
+SN_UNDERSCORES = get_station_name(initialise_river_gauge_station_response.json()).replace(', ','_').lower()
 
+## get rain station id and grid ref for gauge label
+SID = get_station_id(initialise_rain_gauge_station_response.json())
+
+SGRIDREF = get_station_grid_ref(initialise_rain_gauge_station_response.json()).replace(' ','_').upper()
+
+## Actually initialise the gauges
 gauge_river_level = Gauge(f'{SN_UNDERSCORES}_river_level', f'River level at {SN}')
 
-gauge_typical_level = Gauge(f'{SN_UNDERSCORES}_typical_level', f'Typical max level at {SN}')
+gauge_river_typical_level = Gauge(f'{SN_UNDERSCORES}_typical_level', f'Typical max level at {SN}')
 
-gauge_max_record = Gauge(f'{SN_UNDERSCORES}_max_record', f'max record level at {SN}')
+gauge_river_max_record = Gauge(f'{SN_UNDERSCORES}_max_record', f'max record level at {SN}')
+
+gauge_rainfall = Gauge(f'rainfall_osgridref_{SGRIDREF}', f'Rainfall level at environment agency station ID {SID} OS Grid Reference ({SGRIDREF})')
 
 if __name__ == "__main__":
     #expose metrics
@@ -86,4 +118,4 @@ if __name__ == "__main__":
     print(f"Serving sensor metrics on :{METRICS_PORT}")
 
     while True:
-        set_gauge()
+        set_gauges()

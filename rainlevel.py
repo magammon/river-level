@@ -24,14 +24,14 @@ READ_INTERVAL = 1
 try:
     if os.environ['CONTAINERISED'] == 'YES':
         print("Module containerised, using environment values for measure and station APIs.")
-        MEASURE_API = os.environ['MEASURE_API']
-        STATION_API = os.environ['STATION_API']
+        RAIN_MEASURE_API = os.environ['MEASURE_API']
+        RAIN_STATION_API = os.environ['STATION_API']
 
 ## If error raised use hardcoded values
 except KeyError:
     print("Module not containerised, using hard coded values for measure and station APIs.")
-    MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
-    STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/53107"
+    RAIN_MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
+    RAIN_STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/53107"
 
 # define functions
 def get_station_grid_ref(obj):
@@ -40,7 +40,7 @@ def get_station_grid_ref(obj):
     return station_grid_ref.replace('"','')
 
 def get_station_id(obj):
-    """Function takes api output from EA API and returns station grid ref."""
+    """Function takes api output from EA API and returns station ID."""
     station_id = json.dumps(obj['items']['stationReference'])
     return station_id.replace('"','')
 
@@ -52,16 +52,16 @@ def get_rainfall(obj): #TODO update so that this fails gracefully if the API isn
 def set_gauge():
     """Function calls API, feeds to get_rainfall and then sets prometheus guage."""
     ## get responses
-    measure_response = rq.get(MEASURE_API, timeout=30)
+    rain_measure_response = rq.get(RAIN_MEASURE_API, timeout=30)
 
     ## set river guage river level to output of get_rainfall function
-    gauge_rainfall.set(get_rainfall(measure_response.json()))
+    gauge_rainfall.set(get_rainfall(rain_measure_response.json()))
 
     time.sleep(READ_INTERVAL * READ_UNITS)
 
 # initialise the gauges
 ## call the API to get the station JSON
-initialise_gauge_station_response = rq.get(STATION_API, timeout=30)
+initialise_gauge_station_response = rq.get(RAIN_STATION_API, timeout=30)
 
 ## use get_station_name function to extract station name 'label'
 SID = get_station_id(initialise_gauge_station_response.json())
