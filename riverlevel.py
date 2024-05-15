@@ -87,6 +87,17 @@ def set_gauges():
 
     time.sleep(READ_INTERVAL * READ_UNITS)
 
+
+def main():
+    """Function starts metrics webserver"""
+    #expose metrics
+    metrics_port = 8897
+    start_http_server(metrics_port)
+    print(f"Serving sensor metrics on :{metrics_port}")
+
+    while True:
+        set_gauges()
+
 # initialise the gauges
 ## call the API to get the station JSON
 initialise_river_gauge_station_response = rq.get(RIVER_STATION_API, timeout=30)
@@ -112,10 +123,4 @@ gauge_river_max_record = Gauge(f'{SN_UNDERSCORES}_max_record', f'max record leve
 gauge_rainfall = Gauge(f'rainfall_osgridref_{SGRIDREF}', f'Rainfall level at environment agency station ID {SID} OS Grid Reference ({SGRIDREF})')
 
 if __name__ == "__main__":
-    #expose metrics
-    METRICS_PORT = 8897
-    start_http_server(METRICS_PORT)
-    print(f"Serving sensor metrics on :{METRICS_PORT}")
-
-    while True:
-        set_gauges()
+    main()
