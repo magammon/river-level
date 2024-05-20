@@ -1,7 +1,9 @@
 # River Level
-Docker based services that serves prometheus metrics of Environment Agency river level API data using the prometheus python client. 
+Docker based services that serves prometheus metrics of Environment Agency river level API data using the prometheus python client.
 
 Available in AMD, and ARM builds.
+## Why?
+Theres already a tool to scrape json api data and load it into prometheus [[https://github.com/prometheus-community/json_exporter|JSON Exporter]]. 
 ## Pre Reqs
 - docker (including compose)
 
