@@ -3,7 +3,7 @@ Docker based services that serves prometheus metrics of Environment Agency river
 
 Available in AMD, and ARM builds.
 ## Why?
-Theres already a tool to scrape json api data and load it into prometheus [[https://github.com/prometheus-community/json_exporter|JSON Exporter]]. 
+Theres already a tool to scrape json api data and load it into prometheus [[https://github.com/prometheus-community/json_exporter | JSON Exporter]]. 
 ## Pre Reqs
 - docker (including compose)
 
