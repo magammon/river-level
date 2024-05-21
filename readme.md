@@ -25,6 +25,19 @@ Theres already a tool to scrape json api data and load it into prometheus [JSON 
     - on your station page e.g. https://environment.data.gov.uk/flood-monitoring/id/stations/E72639.html the measures available at that station are listed below.
     - Click on the link of the measure you would like to use. Take the URL and update `.html` to `.json` to get the URL of the station to add to your `docker-compose.yml` file
 
+## Setting your `prometheus.yml` file
+To get prometheus to scrape the published gauges you need to update your `prometheus.yml` file i.e.
+
+```
+- job_name: 'json_export_river'
+  scrape_interval: 60s
+  honor_labels: true
+  metrics_path: /probe
+  static_configs:
+    - targets:
+      - 192.168.1.999:8897 # set to IP of the machine running the container. 8897 is the default port.
+```
+
 ## To Do
 - if the reading is 0m then skip updating gauge
 - set metrics port in python program using an environmental variable
