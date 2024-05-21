@@ -3,10 +3,9 @@ Docker based services that serves prometheus metrics of Environment Agency river
 
 Available in AMD, and ARM builds.
 ## Why?
-Theres already a tool to scrape json api data and load it into prometheus [JSON Exporter](https://github.com/prometheus-community/json_exporter). 
+Theres already a tool to scrape json api data and load it into prometheus [JSON Exporter](https://github.com/prometheus-community/json_exporter) but I couldn't get it to work. Because of this i thought it would be a good beginner's challenge to write a python program to do the same and then containerise it so i could run it on my home server.
 ## Pre Reqs
 - docker (including compose)
-
 ## Deploy
 1. `cd` to the project folder
 1. Copy `docker-compose-example.yml` to `docker-compose.yml`
