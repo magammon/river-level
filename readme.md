@@ -8,14 +8,17 @@ Theres already a tool to scrape json api data and load it into prometheus [JSON 
 - docker (including compose)
 
 ## Deploy
-Either:
 1. Copy docker-compose-example.yml to docker-compose.yml and update as required
 1. cd to project folder
 1. run `docker-compose up -d` 
 
+## Finding a station and measure URL
+- the documentation for the river-level api is available [here](https://environment.data.gov.uk/flood-monitoring/doc/reference) and for the rainfal api [here](https://environment.data.gov.uk/flood-monitoring/doc/rainfall).
+- the simplest way to find stations and measures is to use the built in location function of the API.
+- To find stations:
+    - https://environment.data.gov.uk/flood-monitoring/id/stations.html?parameter=rainfall&lat=51.48&long=-2.77&dist=10 provides a list of rainfall stations within 10 km of portishead. Update the lat and long to your desired location to find local stations
+    - https://environment.data.gov.uk/flood-monitoring/id/stations.html?parameter=level&lat=51.48&long=-2.77&dist=10 provides a list of water level stations within 10 km of portishead. Update the lat and long to your desired location to find local stations
+    - Click on the link of the station you would like to use - update `.html` to `.json` to get the 
+
 ## To Do
-- set default values via build args
-- describe guages using api information - DONE
-- name guages using api information e.g. 'river_level' should be keynsham_rivermeads_river_level - DONE
-- make the module detect the OS and if linux do the environment variables - DONE
 - if the reading is 0m then skip updating gauge
