@@ -1,5 +1,5 @@
 # River Level 🏞️
-Docker based services that serves prometheus metrics of Environment Agency river level API data using the prometheus python client.
+Docker based services that serves prometheus metrics of Environment Agency river level & rainfal API data using the prometheus python client.
 
 Available in AMD, and ARM builds.
 ## Why?
