@@ -4,14 +4,20 @@ Docker based services that serves prometheus metrics of Environment Agency river
 Available in AMD, and ARM builds.
 ## Why?
 Theres already a tool to scrape json api data and load it into prometheus [JSON Exporter](https://github.com/prometheus-community/json_exporter) but I couldn't get it to work. Because of this i thought it would be a good beginner's challenge to write a python program to do the same and then containerise it so i could run it on my home server.
-## Pre Reqs
-- docker (including compose)
+
 ## Deploy
+### Running as a docker image
 1. `cd` to the project folder
 1. Copy `docker-compose-example.yml` to `docker-compose.yml`
 1. Update the four environmental variables (water level station, water level measure, rainfall station, rainfall measure) in the compose file 
-1. run `docker-compose up -d` to start the container
+1. Run `docker-compose up -d` to start the container
 1. go to ipofmachine:8897 to check the prometheus guages are being published
+
+### Running the python program
+ `riverlevel.py` will run outside of the docker container:
+ 1. Use pip to install the dependencies in `requirements.txt`
+ 2. Update the four variables (water level station, water level measure, rainfall station, rainfall measure) in `riverlevel.py`
+ 3. Run `python riverlevel.py`
 
 ## Finding a station and measure URL
 - the documentation for the river-level api is available [here](https://environment.data.gov.uk/flood-monitoring/doc/reference) and for the rainfal api [here](https://environment.data.gov.uk/flood-monitoring/doc/rainfall).
