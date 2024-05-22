@@ -36,7 +36,6 @@ except KeyError:
 
 # define functions
 
-
 def get_station_name(obj):
     """Function takes api output from EA API and returns name of station as string."""
     stationname = json.dumps(obj['items']['label'])
