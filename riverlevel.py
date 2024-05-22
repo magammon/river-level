@@ -90,8 +90,16 @@ def set_gauges():
 def main():
     """Function starts metrics webserver"""
     #expose metrics
-    metrics_port = 8897
-    start_http_server(metrics_port)
+    try:
+        if os.environ['CONTAINERISED'] == 'YES':
+            print("Module containerised, using environment values for metrics port.")
+            metrics_port = os.environ['METRICS_PORT']
+
+    except KeyError:
+        print("Module not containerised, using hard coded values for metrics API.")
+        metrics_port = 8897
+
+    start_http_server(int(metrics_port))
     print(f"Serving sensor metrics on :{metrics_port}")
 
     while True:
