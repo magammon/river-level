@@ -15,6 +15,7 @@ on:
       - '!buildscript.sh'
       - '!docker-compose-example.yml'
       - '!rainlevel.py'
+
 jobs:
   docker:
     runs-on: ubuntu-latest
