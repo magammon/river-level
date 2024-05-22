@@ -1,9 +1,18 @@
-name: ci
+name: build-docker-image
 
 on:
   push:
     branches:
     - main
+    paths-ignore:
+      - '.github/**'
+      - '.gitignore'
+      - '.vscode/**'
+      - '.DS_Store'
+      - 'readme.md'
+      - 'buildscript.sh'
+      - 'docker-compose-example.yml'
+      - 'rainlevel.py'
 
 jobs:
   docker:
