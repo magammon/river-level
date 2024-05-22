@@ -7,6 +7,14 @@ on:
     paths:
       - '**.py'
       - 'requirements.txt'
+      - '!.github/**'
+      - '!.gitignore'
+      - '!.vscode/**'
+      - '!.DS_Store'
+      - '!readme.md'
+      - '!buildscript.sh'
+      - '!docker-compose-example.yml'
+      - '!rainlevel.py'
 jobs:
   docker:
     runs-on: ubuntu-latest
