@@ -7,11 +7,26 @@ Theres already a tool to scrape json api data and load it into prometheus [JSON 
 
 ## Deploy
 ### Running as a docker image
+#### Docker Compose
 1. `cd` to the project folder
 1. Copy `docker-compose-example.yml` to `docker-compose.yml`
 1. Update the four environmental variables (water level station, water level measure, rainfall station, rainfall measure) in the compose file 
 1. Run `docker-compose up -d` to start the container
 1. go to ipofmachine:8897 to check the prometheus guages are being published
+#### Docker
+In the terminal run:
+```
+docker run -d -i \
+--name riverleveltest \
+-p 8897:8897 \
+-e RIVER_MEASURE_API=https://environment.data.gov.uk/flood-monitoring/id/measures/examplemeasure.json \
+-e RIVER_STATION_API=https://environment.data.gov.uk/flood-monitoring/id/stations/examplestation.json \
+-e RAIN_MEASURE_API=https://environment.data.gov.uk/flood-monitoring/id/measures/examplemeasure.json \
+-e RAIN_STATION_API=https://environment.data.gov.uk/flood-monitoring/id/stations/examplestation \
+-e METRICS_PORT=8897 \
+magammon/riverlevel:latest
+```
+Ensure that you update the station, measure and metrics port environmental variables.
 
 ### Running the python program
  `riverlevel.py` will run outside of the docker container:
