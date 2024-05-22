@@ -1,5 +1,5 @@
 """
-This module takes environment agency river level and station data 
+This module takes environment agency water level and rainfall measure and station data 
 from their API and converts to prometheus metrics published through a webserver
 """
 import os
