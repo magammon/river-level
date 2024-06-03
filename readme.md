@@ -10,7 +10,7 @@ Theres already a tool to scrape json api data and load it into prometheus [JSON 
 #### Docker Compose
 1. `cd` to the project folder
 1. Copy `docker-compose-example.yml` to `docker-compose.yml`
-1. Update the four environmental variables (water level station, water level measure, rainfall station, rainfall measure) in the compose file 
+1. Update the five environmental variables (water level station, water level measure, rainfall station, rainfall measure, metrics port) in the compose file 
 1. Run `docker-compose up -d` to start the container
 1. go to ipofmachine:8897 to check the prometheus guages are being published
 #### Docker
