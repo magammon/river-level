@@ -41,7 +41,7 @@ def get_station_name(obj):
     stationname = json.dumps(obj['items']['label'])
     return stationname.replace('"','')
 
-def get_height(obj): #TODO update so that this fails gracefully if the API isn't working.
+def get_height(obj): #update so that this fails gracefully if the API isn't working.
     """Function takes api output from EA API and returns river level as float."""
     height = json.dumps(obj['items']['latestReading']['value'])
     return float(height)
@@ -66,7 +66,7 @@ def get_station_id(obj):
     station_id = json.dumps(obj['items']['stationReference'])
     return station_id.replace('"','')
 
-def get_rainfall(obj): #TODO update so that this fails gracefully if the API isn't working.
+def get_rainfall(obj): #update so that this fails gracefully if the API isn't working.
     """Function takes api output from EA API and returns river level as float."""
     rainfall = json.dumps(obj['items']['latestReading']['value'])
     return float(rainfall)
