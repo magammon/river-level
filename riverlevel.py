@@ -1,6 +1,6 @@
 """
 This module takes environment agency water level and rainfall measure and station data 
-from their API and converts to prometheus metrics published through a webserver
+from their API and converts to prometheus metrics published through a webserver.
 """
 import os
 import json
