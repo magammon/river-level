@@ -9,10 +9,80 @@
 ## Proposed Implementation:
 
 ### 1. Add robust error handling to all API parsing functions
-- Wrap all JSON parsing in try/except blocks
-- Return default/fallback values when data is missing
-- Add logging for debugging failed API calls
-- Functions to fix: `get_height()`, `get_rainfall()`, `get_station_name()`, `get_typical()`, `get_record_max()`, `get_station_grid_ref()`, `get_station_id()`
+
+#### 1.1 Function-by-function error handling implementation:
+
+**`get_height(obj)` (lines 44-47):**
+- Current: `json.dumps(obj['items']['latestReading']['value'])` - crashes if any key missing
+- New: Try/except with KeyError, TypeError, ValueError handling
+- Fallback: Return `0.0` (float) when data unavailable
+- Log: "Unable to parse river height from API response"
+
+**`get_rainfall(obj)` (lines 69-72):**
+- Current: `json.dumps(obj['items']['latestReading']['value'])` - crashes if any key missing
+- New: Try/except with KeyError, TypeError, ValueError handling  
+- Fallback: Return `0.0` (float) when data unavailable
+- Log: "Unable to parse rainfall from API response"
+
+**`get_station_name(obj)` (lines 39-42):**
+- Current: `json.dumps(obj['items']['label'])` - crashes if keys missing
+- New: Try/except with KeyError, TypeError handling
+- Fallback: Return `"Unknown Station"` (string) when data unavailable
+- Log: "Unable to parse station name from API response"
+
+**`get_typical(obj)` (lines 49-52):**
+- Current: `json.dumps(obj['items']['stageScale']['typicalRangeHigh'])` - crashes if nested keys missing
+- New: Try/except with KeyError, TypeError, ValueError handling
+- Fallback: Return `0.0` (float) when data unavailable
+- Log: "Unable to parse typical range from API response"
+
+**`get_record_max(obj)` (lines 54-57):**
+- Current: `json.dumps(obj['items']['stageScale']['maxOnRecord']['value'])` - crashes if nested keys missing
+- New: Try/except with KeyError, TypeError, ValueError handling
+- Fallback: Return `0.0` (float) when data unavailable
+- Log: "Unable to parse record max from API response"
+
+**`get_station_grid_ref(obj)` (lines 59-62):**
+- Current: `json.dumps(obj['items']['gridReference'])` - crashes if keys missing
+- New: Try/except with KeyError, TypeError handling
+- Fallback: Return `"UNKNOWN"` (string) when data unavailable
+- Log: "Unable to parse grid reference from API response"
+
+**`get_station_id(obj)` (lines 64-67):**
+- Current: `json.dumps(obj['items']['stationReference'])` - crashes if keys missing
+- New: Try/except with KeyError, TypeError handling
+- Fallback: Return `"UNKNOWN"` (string) when data unavailable
+- Log: "Unable to parse station ID from API response"
+
+#### 1.2 Error handling pattern:
+```python
+def get_height(obj):
+    """Function takes api output from EA API and returns river level as float."""
+    try:
+        height = json.dumps(obj['items']['latestReading']['value'])
+        return float(height)
+    except (KeyError, TypeError, ValueError) as e:
+        print(f"Unable to parse river height from API response: {e}")
+        return 0.0
+```
+
+#### 1.3 Exception types to handle:
+- **KeyError**: When expected JSON keys are missing
+- **TypeError**: When obj is None or wrong type
+- **ValueError**: When conversion to float fails
+- **json.JSONDecodeError**: If JSON parsing fails (less likely since we're working with already parsed objects)
+
+#### 1.4 Fallback values rationale:
+- **Numeric values**: `0.0` - neutral value that won't break Prometheus metrics
+- **String values**: Descriptive defaults (`"Unknown Station"`, `"UNKNOWN"`) - clearly indicate missing data
+- **Maintains type consistency**: All functions return expected types even on error
+
+#### 1.5 Testing approach for step 1:
+- Test each function with `None` input
+- Test with empty dictionary `{}`
+- Test with partial data (missing nested keys)
+- Test with wrong data types (strings where numbers expected)
+- Verify fallback values are returned and logged appropriately
 
 ### 2. Implement retry logic with exponential backoff
 - Create a `make_api_call_with_retry()` function
