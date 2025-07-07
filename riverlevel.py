@@ -7,8 +7,19 @@ import json
 import time
 #import platform
 import requests as rq
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+import logging
 # Import Gauge and start_http_server from prometheus_client
-from prometheus_client import Gauge, start_http_server
+from prometheus_client import Gauge, start_http_server, Counter, Histogram
+from contextlib import contextmanager
+
+# Configure structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # set read units. 1 = seconds, 60 = minutes, 3600 = hours, 86400 = days
 READ_UNITS = 60
@@ -33,6 +44,96 @@ except KeyError:
     RIVER_STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/531160.json"
     RAIN_MEASURE_API = "http://environment.data.gov.uk/flood-monitoring/id/measures/53107-rainfall-tipping_bucket_raingauge-t-15_min-mm.json"
     RAIN_STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/53107.json"
+
+# Define API monitoring metrics
+api_error_counter = Counter('api_request_failures_total', 
+                           'Total API request failures', 
+                           ['endpoint', 'error'])
+api_request_duration = Histogram('api_request_duration_seconds', 
+                                'API request duration in seconds', 
+                                ['endpoint'])
+api_success_counter = Counter('api_request_success_total',
+                             'Total successful API requests',
+                             ['endpoint'])
+api_last_success_time = Gauge('api_last_success_timestamp',
+                             'Timestamp of last successful API call',
+                             ['endpoint'])
+
+@contextmanager
+def api_call_context(endpoint_name):
+    """Context manager for API call monitoring."""
+    start_time = time.time()
+    try:
+        yield
+        api_success_counter.labels(endpoint=endpoint_name).inc()
+        api_last_success_time.labels(endpoint=endpoint_name).set(time.time())
+    except Exception as e:
+        api_error_counter.labels(endpoint=endpoint_name, error=type(e).__name__).inc()
+        raise
+    finally:
+        api_request_duration.labels(endpoint=endpoint_name).observe(time.time() - start_time)
+
+# Create session with retry strategy
+def create_robust_session():
+    """Create requests session with retry strategy and error handling."""
+    session = rq.Session()
+    
+    # Configure retry strategy using proven urllib3 implementation
+    retry_strategy = Retry(
+        total=5,                    # Maximum number of retries
+        backoff_factor=1,           # Exponential backoff factor
+        status_forcelist=[429, 500, 502, 503, 504],  # HTTP codes to retry
+        allowed_methods=["GET"],   # Only retry GET requests
+        raise_on_status=False       # Don't raise exceptions on HTTP errors
+    )
+    
+    # Apply retry strategy to both HTTP and HTTPS
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    
+    return session
+
+# Global session for reuse
+api_session = create_robust_session()
+
+def make_api_call_with_retry(url, endpoint_name="unknown"):
+    """Make API call with retry logic and comprehensive error handling.
+    
+    Args:
+        url: API endpoint URL
+        endpoint_name: Name for logging and metrics (e.g., "river_measure", "rain_station")
+    
+    Returns:
+        dict: Parsed JSON response or None if all retries failed
+    """
+    try:
+        with api_call_context(endpoint_name):
+            response = api_session.get(url, timeout=30)
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.warning(f"HTTP {response.status_code} for {endpoint_name}: {url}")
+                api_error_counter.labels(endpoint=endpoint_name, error=f"http_{response.status_code}").inc()
+                return None
+                
+    except rq.exceptions.ConnectionError as e:
+        logger.error(f"Connection error for {endpoint_name}: {e}")
+        api_error_counter.labels(endpoint=endpoint_name, error="connection_error").inc()
+        return None
+    except rq.exceptions.Timeout as e:
+        logger.error(f"Request timeout for {endpoint_name}: {e}")
+        api_error_counter.labels(endpoint=endpoint_name, error="timeout").inc()
+        return None
+    except rq.exceptions.RequestException as e:
+        logger.error(f"Request error for {endpoint_name}: {e}")
+        api_error_counter.labels(endpoint=endpoint_name, error="request_error").inc()
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error for {endpoint_name}: {e}")
+        api_error_counter.labels(endpoint=endpoint_name, error="unexpected_error").inc()
+        return None
 
 # define functions
 
@@ -108,39 +209,39 @@ def get_rainfall(obj):
 
 def set_gauges():
     """Function calls API, feeds to get_height and then sets prometheus guage."""
-    try:
-        ## get responses
-        river_measure_response = rq.get(RIVER_MEASURE_API, timeout=30)
-        river_station_response = rq.get(RIVER_STATION_API, timeout=30)
-        rain_measure_response = rq.get(RAIN_MEASURE_API, timeout=30)
+    ## get responses with robust retry logic
+    river_measure_response = make_api_call_with_retry(RIVER_MEASURE_API, "river_measure")
+    river_station_response = make_api_call_with_retry(RIVER_STATION_API, "river_station")
+    rain_measure_response = make_api_call_with_retry(RAIN_MEASURE_API, "rain_measure")
 
-        ## check response status codes
-        if river_measure_response.status_code != 200:
-            print(f"Error fetching river measure data: HTTP {river_measure_response.status_code}")
-        else:
-            gauge_river_level.set(get_height(river_measure_response.json()))
+    ## set river guage river level to output of get_height function
+    # Skip metric updates instead of using misleading fallback values
+    if river_measure_response is not None:
+        river_height = get_height(river_measure_response)
+        if river_height is not None:
+            gauge_river_level.set(river_height)
+        # Don't set gauge to 0.0 if data unavailable - preserve last known value
+    else:
+        logger.warning("Skipping river level update - API data unavailable")
 
-        if river_station_response.status_code != 200:
-            print(f"Error fetching river station data: HTTP {river_station_response.status_code}")
-        else:
-            gauge_river_typical_level.set(get_typical(river_station_response.json()))
-            gauge_river_max_record.set(get_record_max(river_station_response.json()))
+    if river_station_response is not None:
+        typical_level = get_typical(river_station_response)
+        if typical_level is not None:
+            gauge_river_typical_level.set(typical_level)
+        
+        max_record = get_record_max(river_station_response)
+        if max_record is not None:
+            gauge_river_max_record.set(max_record)
+    else:
+        logger.warning("Skipping river station metrics update - API data unavailable")
 
-        if rain_measure_response.status_code != 200:
-            print(f"Error fetching rain measure data: HTTP {rain_measure_response.status_code}")
-        else:
-            gauge_rainfall.set(get_rainfall(rain_measure_response.json()))
-
-    except rq.exceptions.ConnectionError as e:
-        print(f"Network connection error when fetching API data: {e}")
-    except rq.exceptions.Timeout as e:
-        print(f"Request timeout when fetching API data: {e}")
-    except rq.exceptions.RequestException as e:
-        print(f"Network error when fetching API data: {e}")
-    except json.JSONDecodeError as e:
-        print(f"Error parsing JSON response: {e}")
-    except Exception as e:
-        print(f"Unexpected error in set_gauges: {e}")
+    if rain_measure_response is not None:
+        rainfall = get_rainfall(rain_measure_response)
+        if rainfall is not None:
+            gauge_rainfall.set(rainfall)
+        # Don't set gauge to 0.0 if data unavailable - preserve last known value
+    else:
+        logger.warning("Skipping rainfall update - API data unavailable")
 
     time.sleep(READ_INTERVAL * READ_UNITS)
 
@@ -164,49 +265,36 @@ def main():
         set_gauges()
 
 # initialise the gauges
-## call the API to get the station JSON
-try:
-    initialise_river_gauge_station_response = rq.get(RIVER_STATION_API, timeout=30)
-    initialise_rain_gauge_station_response = rq.get(RAIN_STATION_API, timeout=30)
+## call the API to get the station JSON with robust retry logic
+initialise_river_gauge_station_response = make_api_call_with_retry(RIVER_STATION_API, "river_station")
+initialise_rain_gauge_station_response = make_api_call_with_retry(RAIN_STATION_API, "rain_station")
 
-    ## get river station name for gauge labels
-    SN = get_station_name(initialise_river_gauge_station_response.json())
+## get river station name for gauge labels with validation and fallback
+if initialise_river_gauge_station_response is None:
+    print("Failed to fetch river station info - using default labels")
+    SN = "Unknown River Station"
+    SN_UNDERSCORES = "unknown_river_station"
+else:
+    SN = get_station_name(initialise_river_gauge_station_response)
+    if SN is None:
+        SN = "Unknown River Station"
+    SN_UNDERSCORES = SN.replace(', ','_').lower()
 
-    SN_UNDERSCORES = get_station_name(initialise_river_gauge_station_response.json()).replace(', ','_').lower()
-
-    ## get rain station id and grid ref for gauge label
-    SID = get_station_id(initialise_rain_gauge_station_response.json())
-
-    SGRIDREF = get_station_grid_ref(initialise_rain_gauge_station_response.json()).replace(' ','_').upper()
-
-except rq.exceptions.ConnectionError as e:
-    print(f"Network connection error during initialization: {e}")
-    print("Using fallback values for gauge initialization")
-    SN = "Unknown Station"
-    SN_UNDERSCORES = "unknown_station"
+## get rain station id and grid ref for gauge label with validation and fallback
+if initialise_rain_gauge_station_response is None:
+    print("Failed to fetch rain station info - using default labels")
     SID = "UNKNOWN"
     SGRIDREF = "UNKNOWN"
-except rq.exceptions.Timeout as e:
-    print(f"Request timeout during initialization: {e}")
-    print("Using fallback values for gauge initialization")
-    SN = "Unknown Station"
-    SN_UNDERSCORES = "unknown_station"
-    SID = "UNKNOWN"
-    SGRIDREF = "UNKNOWN"
-except rq.exceptions.RequestException as e:
-    print(f"Network error during initialization: {e}")
-    print("Using fallback values for gauge initialization")
-    SN = "Unknown Station"
-    SN_UNDERSCORES = "unknown_station"
-    SID = "UNKNOWN"
-    SGRIDREF = "UNKNOWN"
-except Exception as e:
-    print(f"Unexpected error during initialization: {e}")
-    print("Using fallback values for gauge initialization")
-    SN = "Unknown Station"
-    SN_UNDERSCORES = "unknown_station"
-    SID = "UNKNOWN"
-    SGRIDREF = "UNKNOWN"
+else:
+    SID = get_station_id(initialise_rain_gauge_station_response)
+    if SID is None:
+        SID = "UNKNOWN"
+    
+    SGRIDREF = get_station_grid_ref(initialise_rain_gauge_station_response)
+    if SGRIDREF is None:
+        SGRIDREF = "UNKNOWN"
+    else:
+        SGRIDREF = SGRIDREF.replace(' ','_').upper()
 
 ## Actually initialise the gauges
 gauge_river_level = Gauge(f'{SN_UNDERSCORES}_river_level', f'River level at {SN}')
