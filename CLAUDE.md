@@ -41,9 +41,12 @@ python riverlevel.py
 
 ### Docker Operations
 ```bash
-# Build image
+# Build image (includes Python syntax validation)
 docker build -t riverlevel .
+```
+**Note**: The Docker build process includes automatic Python syntax validation using `py_compile`. Builds will fail if there are syntax errors in `riverlevel.py`, preventing deployment of broken code.
 
+```bash
 # Run container with environment variables
 docker run -d -p 8897:8897 \
   -e RIVER_MEASURE_API=https://environment.data.gov.uk/flood-monitoring/id/measures/example.json \

@@ -19,6 +19,8 @@ COPY requirements.txt /
 RUN /env/bin/pip install -r requirements.txt
 ## copy over the python script
 COPY riverlevel.py /
+## validate Python syntax before proceeding
+RUN /env/bin/python3 -m py_compile riverlevel.py
 ## set ENV so that python script knows it is in a container
 ENV CONTAINERISED=YES
 ## Using the python 3 in the venv execute the script
