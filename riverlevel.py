@@ -6,6 +6,8 @@ import os
 import json
 import time
 import sys
+import threading
+from datetime import datetime, timezone
 #import platform
 import requests as rq
 from requests.adapters import HTTPAdapter
@@ -13,16 +15,47 @@ from urllib3.util.retry import Retry
 import logging
 import re
 from urllib.parse import urlparse
+from http.server import BaseHTTPRequestHandler, HTTPServer
 # Import Gauge and start_http_server from prometheus_client
 from prometheus_client import Gauge, start_http_server, Counter, Histogram
 from contextlib import contextmanager
 
+class JsonFormatter(logging.Formatter):
+    """Custom JSON formatter for structured logging."""
+    def format(self, record):
+        log_entry = {
+            'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+            'level': record.levelname,
+            'component': 'riverlevel',
+            'message': record.getMessage()
+        }
+        
+        # Add extra fields if present
+        if hasattr(record, 'api_endpoint'):
+            log_entry['api_endpoint'] = record.api_endpoint
+        if hasattr(record, 'fallback_used'):
+            log_entry['fallback_used'] = record.fallback_used
+        if hasattr(record, 'endpoint'):
+            log_entry['endpoint'] = record.endpoint
+        if hasattr(record, 'error_type'):
+            log_entry['error_type'] = record.error_type
+        if hasattr(record, 'http_status'):
+            log_entry['http_status'] = record.http_status
+        if hasattr(record, 'startup_phase'):
+            log_entry['startup_phase'] = record.startup_phase
+        
+        return json.dumps(log_entry)
+
 # Configure structured logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger(__name__)
+
+# Apply JSON formatter
+handler = logging.StreamHandler()
+handler.setFormatter(JsonFormatter())
+logger.handlers.clear()
+logger.addHandler(handler)
+logger.propagate = False
 
 # set read units. 1 = seconds, 60 = minutes, 3600 = hours, 86400 = days
 READ_UNITS = 60
@@ -261,11 +294,112 @@ def validate_station_response(response_data):
     """Validate API response for station data."""
     return validate_measurement_response(response_data, "station")
 
+def assess_functionality_status():
+    """Assess and log current functionality status."""
+    status = {
+        'river_api_available': initialise_river_gauge_station_response is not None,
+        'rain_api_available': initialise_rain_gauge_station_response is not None,
+        'degraded_mode': False
+    }
+    
+    if not status['river_api_available'] and not status['rain_api_available']:
+        status['degraded_mode'] = True
+        logger.error("CRITICAL: All APIs unavailable - running in severely degraded mode", 
+                    extra={'startup_phase': 'assessment'})
+        degraded_mode_active.set(1)
+    elif not status['river_api_available']:
+        status['degraded_mode'] = True
+        logger.warning("River API unavailable - partial functionality only", 
+                      extra={'startup_phase': 'assessment'})
+        degraded_mode_active.set(1)
+    elif not status['rain_api_available']:
+        status['degraded_mode'] = True
+        logger.warning("Rain API unavailable - partial functionality only", 
+                      extra={'startup_phase': 'assessment'})
+        degraded_mode_active.set(1)
+    else:
+        logger.info("All APIs available - full functionality", 
+                   extra={'startup_phase': 'assessment'})
+        degraded_mode_active.set(0)
+    
+    return status
+
+class HealthHandler(BaseHTTPRequestHandler):
+    """HTTP handler for health check endpoint."""
+    
+    def do_GET(self):
+        """Handle GET requests for health checks."""
+        if self.path == '/health':
+            # Check if at least one API is working
+            if (initialise_river_gauge_station_response is not None or 
+                initialise_rain_gauge_station_response is not None):
+                
+                # Prepare detailed health status
+                health_status = {
+                    'status': 'healthy',
+                    'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+                    'apis': {
+                        'river_station': initialise_river_gauge_station_response is not None,
+                        'rain_station': initialise_rain_gauge_station_response is not None
+                    }
+                }
+                
+                # Check if degraded
+                if (initialise_river_gauge_station_response is None or 
+                    initialise_rain_gauge_station_response is None):
+                    health_status['status'] = 'degraded'
+                    health_status['message'] = 'Some APIs unavailable but service functional'
+                
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(health_status).encode('utf-8'))
+            else:
+                # No APIs available
+                error_status = {
+                    'status': 'unhealthy',
+                    'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+                    'reason': 'No APIs available',
+                    'apis': {
+                        'river_station': False,
+                        'rain_station': False
+                    }
+                }
+                
+                self.send_response(503)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(error_status).encode('utf-8'))
+        else:
+            # Not found
+            self.send_response(404)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(b'{"error": "Not found"}')
+    
+    def log_message(self, format, *args):
+        """Override to use structured logging."""
+        logger.info(f"Health check: {format % args}", extra={'component': 'health_server'})
+
+def start_health_server():
+    """Start the health check server in a separate thread."""
+    try:
+        health_server = HTTPServer(('', 8898), HealthHandler)
+        health_thread = threading.Thread(target=health_server.serve_forever)
+        health_thread.daemon = True
+        health_thread.start()
+        logger.info("Health check server started on port 8898", extra={'startup_phase': 'health_server'})
+        return health_server
+    except Exception as e:
+        logger.error(f"Failed to start health server: {e}", extra={'startup_phase': 'health_server'})
+        return None
+
 # set api uris.
 ## Try if environment variable has been set (e.g. that module running in container)
 try:
     if os.environ['CONTAINERISED'] == 'YES':
-        print("Module containerised, using environment values for measure and station APIs.")
+        logger.info("Module containerised, using environment values for measure and station APIs", 
+                   extra={'startup_phase': 'configuration'})
         RIVER_MEASURE_API = os.environ['RIVER_MEASURE_API']
         RIVER_STATION_API = os.environ['RIVER_STATION_API']
         RAIN_MEASURE_API = os.environ['RAIN_MEASURE_API']
@@ -273,7 +407,8 @@ try:
 
 ## If error raised use hardcoded values
 except KeyError:
-    print("Module not containerised, using hard coded values for measure and station APIs.")
+    logger.info("Module not containerised, using hard coded values for measure and station APIs", 
+               extra={'startup_phase': 'configuration'})
     RIVER_MEASURE_API = "https://environment.data.gov.uk/flood-monitoring/id/measures/531160-level-stage-i-15_min-mASD.json"
     RIVER_STATION_API = "https://environment.data.gov.uk/flood-monitoring/id/stations/531160.json"
     RAIN_MEASURE_API = "http://environment.data.gov.uk/flood-monitoring/id/measures/53107-rainfall-tipping_bucket_raingauge-t-15_min-mm.json"
@@ -292,6 +427,20 @@ api_success_counter = Counter('api_request_success_total',
 api_last_success_time = Gauge('api_last_success_timestamp',
                              'Timestamp of last successful API call',
                              ['endpoint'])
+
+# Define initialization metrics
+initialization_success = Counter('riverlevel_initialization_success_total', 
+                                'Number of successful API initializations',
+                                ['api_type'])
+initialization_failure = Counter('riverlevel_initialization_failure_total',
+                                'Number of failed API initializations', 
+                                ['api_type'])
+startup_time = Histogram('riverlevel_startup_seconds',
+                        'Time taken for application startup')
+application_start_time = Gauge('riverlevel_application_start_timestamp',
+                              'Timestamp when application started')
+degraded_mode_active = Gauge('riverlevel_degraded_mode_active',
+                           'Whether application is running in degraded mode')
 
 @contextmanager
 def api_call_context(endpoint_name):
@@ -531,8 +680,13 @@ def set_gauges():
 
 def main():
     """Main application entry point with configuration validation."""
+    startup_start_time = time.time()
+    
     # Validate configuration first - fail fast approach
     validate_config_on_startup()
+    
+    # Start health check server
+    health_server = start_health_server()
     
     # Function starts metrics webserver
     #expose metrics
@@ -547,6 +701,14 @@ def main():
 
     start_http_server(int(metrics_port))
     logger.info(f"Serving sensor metrics on :{metrics_port}")
+    
+    # Record startup metrics
+    startup_duration = time.time() - startup_start_time
+    startup_time.observe(startup_duration)
+    application_start_time.set(time.time())
+    
+    logger.info(f"Application startup completed in {startup_duration:.2f} seconds", 
+               extra={'startup_phase': 'complete', 'startup_duration': startup_duration})
 
     while True:
         set_gauges()
@@ -558,7 +720,9 @@ initialise_rain_gauge_station_response = make_api_call_with_retry(RAIN_STATION_A
 
 ## get river station name for gauge labels with validation and fallback
 if initialise_river_gauge_station_response is None:
-    print("Failed to fetch river station info - using default labels")
+    logger.warning("Failed to fetch river station info - using default labels", 
+                   extra={'api_endpoint': RIVER_STATION_API, 'fallback_used': True, 'startup_phase': 'initialization'})
+    initialization_failure.labels(api_type='river_station').inc()
     SN = "Unknown River Station"
     SN_UNDERSCORES = "unknown_river_station"
 else:
@@ -566,10 +730,14 @@ else:
     if SN is None:
         SN = "Unknown River Station"
     SN_UNDERSCORES = SN.replace(', ','_').lower()
+    initialization_success.labels(api_type='river_station').inc()
+    logger.info(f"River station initialized: {SN}", extra={'startup_phase': 'initialization'})
 
 ## get rain station id and grid ref for gauge label with validation and fallback
 if initialise_rain_gauge_station_response is None:
-    print("Failed to fetch rain station info - using default labels")
+    logger.warning("Failed to fetch rain station info - using default labels", 
+                   extra={'api_endpoint': RAIN_STATION_API, 'fallback_used': True, 'startup_phase': 'initialization'})
+    initialization_failure.labels(api_type='rain_station').inc()
     SID = "UNKNOWN"
     SGRIDREF = "UNKNOWN"
 else:
@@ -582,6 +750,8 @@ else:
         SGRIDREF = "UNKNOWN"
     else:
         SGRIDREF = SGRIDREF.replace(' ','_').upper()
+    initialization_success.labels(api_type='rain_station').inc()
+    logger.info(f"Rain station initialized: ID={SID}, GridRef={SGRIDREF}", extra={'startup_phase': 'initialization'})
 
 ## Actually initialise the gauges
 gauge_river_level = Gauge(f'{SN_UNDERSCORES}_river_level', f'River level at {SN}')
@@ -591,6 +761,9 @@ gauge_river_typical_level = Gauge(f'{SN_UNDERSCORES}_typical_level', f'Typical m
 gauge_river_max_record = Gauge(f'{SN_UNDERSCORES}_max_record', f'max record level at {SN}')
 
 gauge_rainfall = Gauge(f'rainfall_osgridref_{SGRIDREF}', f'Rainfall level at environment agency station ID {SID} OS Grid Reference ({SGRIDREF})')
+
+# Assess functionality status after initialization
+functionality_status = assess_functionality_status()
 
 if __name__ == "__main__":
     main()
