@@ -139,38 +139,73 @@ def make_api_call_with_retry(url, endpoint_name="unknown"):
 
 def get_station_name(obj):
     """Function takes api output from EA API and returns name of station as string."""
-    stationname = json.dumps(obj['items']['label'])
-    return stationname.replace('"','')
+    if obj is None:
+        return "Unknown Station"
+    try:
+        return str(obj['items']['label'])
+    except (KeyError, TypeError) as e:
+        print(f"Unable to parse station name from API response: {e}")
+        return "Unknown Station"
 
-def get_height(obj): #update so that this fails gracefully if the API isn't working.
+def get_height(obj):
     """Function takes api output from EA API and returns river level as float."""
-    height = json.dumps(obj['items']['latestReading']['value'])
-    return float(height)
+    if obj is None:
+        return 0.0
+    try:
+        return float(obj['items']['latestReading']['value'])
+    except (KeyError, TypeError, ValueError) as e:
+        print(f"Unable to parse river height from API response: {e}")
+        return 0.0
 
 def get_typical(obj):
     """Function takes api output from EA API and returns information about station."""
-    typical = json.dumps(obj['items']['stageScale']['typicalRangeHigh'])
-    return float(typical)
+    if obj is None:
+        return 0.0
+    try:
+        return float(obj['items']['stageScale']['typicalRangeHigh'])
+    except (KeyError, TypeError, ValueError) as e:
+        print(f"Unable to parse typical range from API response: {e}")
+        return 0.0
 
 def get_record_max(obj):
     """Function takes api output from EA API and returns information about station."""
-    recordmax = json.dumps(obj['items']['stageScale']['maxOnRecord']['value'])
-    return float(recordmax)
+    if obj is None:
+        return 0.0
+    try:
+        return float(obj['items']['stageScale']['maxOnRecord']['value'])
+    except (KeyError, TypeError, ValueError) as e:
+        print(f"Unable to parse record max from API response: {e}")
+        return 0.0
 
 def get_station_grid_ref(obj):
     """Function takes api output from EA API and returns station grid ref."""
-    station_grid_ref = json.dumps(obj['items']['gridReference'])
-    return station_grid_ref.replace('"','')
+    if obj is None:
+        return "UNKNOWN"
+    try:
+        return str(obj['items']['gridReference'])
+    except (KeyError, TypeError) as e:
+        print(f"Unable to parse grid reference from API response: {e}")
+        return "UNKNOWN"
 
 def get_station_id(obj):
     """Function takes api output from EA API and returns station ID."""
-    station_id = json.dumps(obj['items']['stationReference'])
-    return station_id.replace('"','')
+    if obj is None:
+        return "UNKNOWN"
+    try:
+        return str(obj['items']['stationReference'])
+    except (KeyError, TypeError) as e:
+        print(f"Unable to parse station ID from API response: {e}")
+        return "UNKNOWN"
 
-def get_rainfall(obj): #update so that this fails gracefully if the API isn't working.
-    """Function takes api output from EA API and returns river level as float."""
-    rainfall = json.dumps(obj['items']['latestReading']['value'])
-    return float(rainfall)
+def get_rainfall(obj):
+    """Function takes api output from EA API and returns rainfall as float."""
+    if obj is None:
+        return 0.0
+    try:
+        return float(obj['items']['latestReading']['value'])
+    except (KeyError, TypeError, ValueError) as e:
+        print(f"Unable to parse rainfall from API response: {e}")
+        return 0.0
 
 def set_gauges():
     """Function calls API, feeds to get_height and then sets prometheus guage."""
