@@ -44,10 +44,14 @@ def get_station_id(obj):
     station_id = json.dumps(obj['items']['stationReference'])
     return station_id.replace('"','')
 
-def get_rainfall(obj): #TODO update so that this fails gracefully if the API isn't working.
+def get_rainfall(obj):
     """Function takes api output from EA API and returns river level as float."""
-    rainfall = json.dumps(obj['items']['latestReading']['value'])
-    return float(rainfall)
+    try:
+        rainfall = obj['items']['latestReading']['value']
+        return float(rainfall)
+    except (KeyError, TypeError, ValueError):
+        print("Error: Could not extract rainfall value from API response.")
+        return float('nan')
 
 def set_gauge():
     """Function calls API, feeds to get_rainfall and then sets prometheus guage."""
