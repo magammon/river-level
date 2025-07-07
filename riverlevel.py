@@ -83,7 +83,7 @@ def create_robust_session():
         total=5,                    # Maximum number of retries
         backoff_factor=1,           # Exponential backoff factor
         status_forcelist=[429, 500, 502, 503, 504],  # HTTP codes to retry
-        method_whitelist=["GET"],   # Only retry GET requests
+        allowed_methods=["GET"],   # Only retry GET requests
         raise_on_status=False       # Don't raise exceptions on HTTP errors
     )
     
