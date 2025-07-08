@@ -4,3 +4,4 @@
 /__pycache__
 riverlevel.log
 test-results.xml
+.coverage
