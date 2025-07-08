@@ -59,6 +59,21 @@ pip install -r requirements.txt
 python riverlevel.py
 ```
 
+### Testing
+```bash
+# Run all tests
+pytest test_riverlevel.py -v
+
+# Run tests with coverage report
+pytest test_riverlevel.py --cov=riverlevel --cov-report=html --cov-report=term-missing
+
+# Run specific test class
+pytest test_riverlevel.py::TestCoreAPIFunctions -v
+
+# Run tests in watch mode (install pytest-watch first)
+ptw test_riverlevel.py
+```
+
 ### Docker Operations
 ```bash
 # Build image (includes Python syntax validation)
@@ -273,6 +288,14 @@ The following improvements have been successfully implemented:
 - **Static data caching**: Station info cached during initialization, only measurements fetched repeatedly
 - **Configuration consistency**: Unified configuration pattern with comprehensive validation
 
+### ✅ Testing Foundation
+- **Comprehensive test suite**: 73 unit and integration tests in `test_riverlevel.py`
+- **Code coverage**: 61% coverage with focus on core API parsing and validation functions
+- **Mock API responses**: Realistic Environment Agency API response testing
+- **Error handling tests**: Comprehensive fallback behavior and malformed data handling
+- **Testing infrastructure**: pytest, pytest-cov, pytest-mock, and requests-mock frameworks
+- **CI/CD ready**: Test suite enables safe refactoring and continuous integration
+
 ## Remaining Improvement Opportunities
 
 ### Phase 1: Code Organization
@@ -287,11 +310,11 @@ The following improvements have been successfully implemented:
 - **Container resource limits**: Add memory and CPU limits to container configuration
 - **Security scanning**: Implement container vulnerability scanning in CI/CD
 
-### Phase 3: Testing & Quality
-**Current State**: No automated testing framework in place
-- **Unit tests**: Add tests for core API parsing functions
-- **Integration tests**: Test API integration with mock responses
+### Phase 3: Performance & Monitoring
+**Current State**: Basic monitoring in place, but could be enhanced
 - **Performance tests**: Validate application performance under load
+- **Advanced monitoring**: Add distributed tracing and custom dashboards
+- **Alerting**: Implement proactive alerting for API failures and performance degradation
 
 ### Phase 4: Optional Enhancements
 **Future Improvements:**
@@ -302,3 +325,87 @@ The following improvements have been successfully implemented:
 - **Multi-station support**: Support monitoring multiple stations simultaneously
 
 Each improvement builds on the existing robust foundation, ensuring the application remains reliable throughout enhancement.
+
+## Development Workflow
+
+### Setting Up Development Environment
+
+1. **Clone and setup**:
+   ```bash
+   git clone <repository-url>
+   cd river-level
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+2. **Run tests to verify setup**:
+   ```bash
+   pytest test_riverlevel.py -v
+   ```
+
+### Testing Guidelines
+
+#### Test Structure
+- **Unit Tests**: Test individual functions in isolation
+- **Integration Tests**: Test API interactions with mocked responses
+- **Error Handling Tests**: Test fallback behavior and malformed data
+- **Configuration Tests**: Test environment variable validation
+
+#### Test Coverage Targets
+- **Core Functions**: 100% coverage for `get_*()` functions
+- **Validation Functions**: 100% coverage for `validate_*()` functions
+- **Overall Target**: 80%+ code coverage for new features
+
+#### Running Tests During Development
+```bash
+# Quick test run
+pytest test_riverlevel.py
+
+# Detailed output with coverage
+pytest test_riverlevel.py -v --cov=riverlevel --cov-report=term-missing
+
+# Generate HTML coverage report
+pytest test_riverlevel.py --cov=riverlevel --cov-report=html
+# View report at htmlcov/index.html
+
+# Run specific test
+pytest test_riverlevel.py::TestCoreAPIFunctions::test_get_height_success
+```
+
+### Adding New Features
+
+1. **Write tests first** (Test-Driven Development):
+   ```python
+   def test_new_feature():
+       # Test the expected behavior
+       result = new_feature_function()
+       assert result == expected_value
+   ```
+
+2. **Implement the feature** to make tests pass
+
+3. **Run full test suite** to ensure no regressions:
+   ```bash
+   pytest test_riverlevel.py -v
+   ```
+
+4. **Check coverage** to ensure new code is tested:
+   ```bash
+   pytest test_riverlevel.py --cov=riverlevel --cov-report=term-missing
+   ```
+
+### Code Quality Checks
+
+- **Linting**: Use pylint or flake8 for code quality
+- **Type hints**: Add type annotations for better code documentation
+- **Documentation**: Update docstrings for new functions
+- **Error handling**: Ensure all new functions have proper error handling and fallback values
+
+### Testing Best Practices
+
+1. **Mock external dependencies**: Use `requests-mock` for API calls
+2. **Test edge cases**: Include tests for None inputs, empty responses, malformed data
+3. **Test error conditions**: Verify proper fallback behavior
+4. **Use descriptive test names**: Make test purpose clear from the name
+5. **Keep tests isolated**: Each test should be independent and not rely on others
