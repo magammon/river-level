@@ -6,6 +6,7 @@ import os
 import json
 import time
 import sys
+import signal
 import threading
 from datetime import datetime, timezone
 #import platform
@@ -91,6 +92,17 @@ def setup_logging():
 
 # Initialize logging at startup
 logger = setup_logging()
+
+def setup_signal_handlers():
+    """Setup graceful shutdown handlers."""
+    def signal_handler(signum, frame):
+        logger.info(f"Received shutdown signal {signum}")
+        logger.info("Initiating graceful shutdown...")
+        sys.exit(0)
+    
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    logger.info("Signal handlers registered for graceful shutdown")
 
 # set read units. 1 = seconds, 60 = minutes, 3600 = hours, 86400 = days
 READ_UNITS = 60
@@ -363,52 +375,74 @@ class HealthHandler(BaseHTTPRequestHandler):
     """HTTP handler for health check endpoint."""
     
     def do_GET(self):
-        """Handle GET requests for health checks."""
+        """Enhanced health check with detailed API and metrics status."""
         if self.path == '/health':
-            # Check if at least one API is working
-            if (initialise_river_gauge_station_response is not None or 
-                initialise_rain_gauge_station_response is not None):
-                
-                # Prepare detailed health status
-                health_status = {
-                    'status': 'healthy',
-                    'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
-                    'apis': {
-                        'river_station': initialise_river_gauge_station_response is not None,
-                        'rain_station': initialise_rain_gauge_station_response is not None
-                    }
+            # Base health status structure
+            health_status = {
+                'status': 'healthy',
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'apis': {
+                    'river_station': initialise_river_gauge_station_response is not None,
+                    'rain_station': initialise_rain_gauge_station_response is not None
+                },
+                'initialization': {
+                    'river_station_initialized': initialise_river_gauge_station_response is not None,
+                    'rain_station_initialized': initialise_rain_gauge_station_response is not None
                 }
+            }
+            
+            # Add metrics if available (with error handling)
+            try:
+                metrics_data = {}
+                # Safely access Prometheus metrics
+                if hasattr(api_last_success_time, 'labels'):
+                    try:
+                        metrics_data['last_successful_river_update'] = api_last_success_time.labels(endpoint='river_measure')._value._value
+                    except (AttributeError, TypeError):
+                        metrics_data['last_successful_river_update'] = 0
+                    
+                    try:
+                        metrics_data['last_successful_rain_update'] = api_last_success_time.labels(endpoint='rain_measure')._value._value
+                    except (AttributeError, TypeError):
+                        metrics_data['last_successful_rain_update'] = 0
+                    
+                    try:
+                        metrics_data['last_successful_river_station_update'] = api_last_success_time.labels(endpoint='river_station')._value._value
+                    except (AttributeError, TypeError):
+                        metrics_data['last_successful_river_station_update'] = 0
+                    
+                    try:
+                        metrics_data['last_successful_rain_station_update'] = api_last_success_time.labels(endpoint='rain_station')._value._value
+                    except (AttributeError, TypeError):
+                        metrics_data['last_successful_rain_station_update'] = 0
                 
-                # Check if degraded
-                if (initialise_river_gauge_station_response is None or 
-                    initialise_rain_gauge_station_response is None):
-                    health_status['status'] = 'degraded'
-                    health_status['message'] = 'Some APIs unavailable but service functional'
-                
-                self.send_response(200)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps(health_status).encode('utf-8'))
-            else:
-                # No APIs available
-                error_status = {
-                    'status': 'unhealthy',
-                    'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
-                    'reason': 'No APIs available',
-                    'apis': {
-                        'river_station': False,
-                        'rain_station': False
-                    }
-                }
-                
+                health_status['metrics'] = metrics_data
+            except Exception as e:
+                # If metrics access fails, continue without metrics
+                health_status['metrics'] = {'error': 'metrics_unavailable'}
+            
+            # Determine overall health based on API availability
+            if (initialise_river_gauge_station_response is None and 
+                initialise_rain_gauge_station_response is None):
+                health_status['status'] = 'unhealthy'
+                health_status['message'] = 'All APIs unavailable'
                 self.send_response(503)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps(error_status).encode('utf-8'))
+            elif (initialise_river_gauge_station_response is None or 
+                  initialise_rain_gauge_station_response is None):
+                health_status['status'] = 'degraded'
+                health_status['message'] = 'Some APIs unavailable but service functional'
+                self.send_response(200)
+            else:
+                health_status['status'] = 'healthy'
+                health_status['message'] = 'All systems operational'
+                self.send_response(200)
+                
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(health_status).encode('utf-8'))
         else:
-            # Not found
             self.send_response(404)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-Type', 'application/json')
             self.end_headers()
             self.wfile.write(b'{"error": "Not found"}')
     
@@ -740,6 +774,9 @@ def main():
     # Validate configuration first - fail fast approach
     validate_config_on_startup()
     
+    # Setup signal handlers for graceful shutdown
+    setup_signal_handlers()
+    
     # Start health check server
     health_server = start_health_server()
     
@@ -781,10 +818,14 @@ def main():
                 time.sleep(30)  # Shorter delay on error
                 
     except KeyboardInterrupt:
-        logger.info("Received shutdown signal, stopping application")
+        logger.info("Received keyboard interrupt, stopping application")
+    except SystemExit:
+        logger.info("Received system exit signal, stopping application")
     except Exception as e:
         logger.critical("Fatal error in application", exc_info=True)
         raise
+    finally:
+        logger.info("Application shutdown complete")
 
 # initialise the gauges
 ## call the API to get the station JSON with robust retry logic
