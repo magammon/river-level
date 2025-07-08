@@ -1,6 +1,8 @@
 FROM alpine:latest
 
 EXPOSE 8897
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD /env/bin/python3 -c "import requests; requests.get('http://localhost:8898/health').raise_for_status()" || exit 1
 ## update apt, install python3, pip and venv
 RUN apk update 
 RUN apk add --no-cache python3 
